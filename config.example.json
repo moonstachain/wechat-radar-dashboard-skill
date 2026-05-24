@@ -1,0 +1,41 @@
+{
+  "brand": "MY RADAR",
+  "tagline": "私有看板 · 高信号优先",
+  "self_ids": [
+    "YourDisplayNick",
+    "your_wxid"
+  ],
+  "at_queries": [
+    "@YourDisplayNick"
+  ],
+  "llm": {
+    "provider": "dashscope",
+    "model": "qwen-plus",
+    "api_key_env": "DASHSCOPE_API_KEY",
+    "endpoint": "https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions",
+    "temperature": 0.3
+  },
+  "windows": {
+    "stats_days": 30,
+    "links_days": 30,
+    "mentions_days": 7,
+    "llm_hours": 24
+  },
+  "server": {
+    "port": 8786,
+    "host": "127.0.0.1",
+    "cache_ttl_seconds": 60
+  },
+  "spam_groups_hint": [
+    "营销机器人主导的群关键词",
+    "推销 / 福利 / 拼团 等关键词在群名出现的"
+  ],
+  "_notes": {
+    "self_ids": "你在微信群里的显示名 + 你的 wxid (有时不同). 用于过滤'自己 @ 自己'/'自己发的消息不进 sources'. 必须真实填写.",
+    "at_queries": "wx search 用. 通常是 '@<你的显示名>'. 如果有多个 nick (公司群 vs 朋友群)可以多放几个.",
+    "brand": "侧栏品牌字 (大字母). 例: 'YUANLI RADAR' / 'WORK RADAR' / 'PERSONAL OS'.",
+    "llm.provider": "支持 dashscope (qwen) / openai (gpt-4) / claude (sonnet). 模型 + endpoint + key env 自己配.",
+    "llm.api_key_env": "脚本会从 ~/.zshrc 或环境变量读这个名字的 export. 不要把 key 直接写进 config.json (会进 git).",
+    "windows.llm_hours": "LLM 拉多少小时的文本消息做摘要. 越长越贵, 24h 是甜蜜点 (~¥0.17/run)."
+  }
+}

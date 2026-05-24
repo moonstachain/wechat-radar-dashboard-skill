@@ -1,0 +1,31 @@
+# ─── PII / 数据缓存 (绝对不能上 repo) ───
+config.json
+stats.json
+links.json
+mentions.json
+llm_output.json
+*.log
+launchd.out.log
+launchd.err.log
+
+# ─── 凭证 ───
+.env
+.env.local
+*.key
+secrets.json
+
+# ─── macOS / IDE ───
+.DS_Store
+.idea/
+.vscode/
+*.swp
+
+# ─── Python ───
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# ─── 临时 ───
+*.tmp
+*.bak

@@ -1,0 +1,993 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>MY RADAR · 微信群聊·情报看板</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com?plugins=typography"></script>
+<script>
+  tailwind.config = {
+    theme: {
+      extend: {
+        colors: {
+          ink: { 950:'#05080d',900:'#0a0e14',850:'#0d1219',800:'#11161e',700:'#1a2230',600:'#283142',500:'#3b475c',400:'#5b6577',300:'#8a93a4',200:'#b8bfcc',100:'#dfe3ea',50:'#f0f2f6' },
+          lime: { DEFAULT:'#a3e635' },
+          accent: { mint:'#86efac',amber:'#fbbf24',cyan:'#67e8f9',violet:'#c4b5fd',rose:'#fda4af',blue:'#93c5fd',green:'#86efac',orange:'#fdba74',pink:'#f9a8d4',yellow:'#fde047',brown:'#d6b88a',red:'#fca5a5' }
+        },
+        fontFamily: { sans:['Inter','-apple-system','BlinkMacSystemFont','PingFang SC','Hiragino Sans','Microsoft YaHei','sans-serif'], mono:['JetBrains Mono','SF Mono','Menlo','monospace'] }
+      }
+    }
+  }
+</script>
+<style>
+  html, body { background:#05080d; color:#dfe3ea; font-feature-settings:"tnum" 1,"cv11" 1; }
+  body { font-family:'Inter',-apple-system,'PingFang SC','Hiragino Sans','Microsoft YaHei',sans-serif; }
+  .num { font-family:'JetBrains Mono','SF Mono',monospace; letter-spacing:-0.02em; }
+  .label { font-family:'JetBrains Mono',monospace; letter-spacing:0.16em; text-transform:uppercase; }
+  .scrollbar-thin::-webkit-scrollbar { width:6px; height:6px; }
+  .scrollbar-thin::-webkit-scrollbar-thumb { background:#283142; border-radius:3px; }
+  .scrollbar-thin::-webkit-scrollbar-track { background:transparent; }
+  .card { background:linear-gradient(180deg,#0d1219 0%,#0a0e14 100%); border:1px solid rgba(255,255,255,0.05); border-radius:14px; box-shadow:0 1px 0 0 rgba(255,255,255,0.03) inset,0 1px 2px 0 rgba(0,0,0,0.6); }
+  .card-soft { background:#0a0e14; border:1px solid rgba(255,255,255,0.04); border-radius:12px; }
+  .pill { display:inline-flex; align-items:center; padding:2px 8px; border-radius:6px; font-size:11px; font-weight:500; line-height:1.4; font-family:'Inter',sans-serif; }
+  .pill-lime { background:rgba(163,230,53,0.12); color:#bef264; border:1px solid rgba(163,230,53,0.22); }
+  .pill-amber { background:rgba(251,191,36,0.10); color:#fcd34d; border:1px solid rgba(251,191,36,0.20); }
+  .pill-cyan { background:rgba(103,232,249,0.08); color:#a5f3fc; border:1px solid rgba(103,232,249,0.18); }
+  .pill-blue { background:rgba(147,197,253,0.08); color:#bfdbfe; border:1px solid rgba(147,197,253,0.18); }
+  .pill-violet { background:rgba(196,181,253,0.08); color:#ddd6fe; border:1px solid rgba(196,181,253,0.18); }
+  .pill-green { background:rgba(134,239,172,0.10); color:#bbf7d0; border:1px solid rgba(134,239,172,0.18); }
+  .pill-pink { background:rgba(249,168,212,0.08); color:#fbcfe8; border:1px solid rgba(249,168,212,0.18); }
+  .pill-yellow { background:rgba(253,224,71,0.08); color:#fef08a; border:1px solid rgba(253,224,71,0.18); }
+  .pill-red { background:rgba(252,165,165,0.10); color:#fecaca; border:1px solid rgba(252,165,165,0.20); }
+  .pill-ghost { background:rgba(255,255,255,0.03); color:#8a93a4; border:1px solid rgba(255,255,255,0.05); }
+  .nav-item { display:flex; align-items:center; gap:10px; padding:7px 10px; border-radius:8px; color:#8a93a4; font-size:13.5px; cursor:pointer; transition:background 120ms,color 120ms; }
+  .nav-item:hover { background:rgba(255,255,255,0.03); color:#dfe3ea; }
+  .nav-item.active { background:linear-gradient(180deg,rgba(163,230,53,0.10) 0%,rgba(163,230,53,0.04) 100%); border:1px solid rgba(163,230,53,0.22); color:#ecfccb; padding:6px 9px; }
+  .nav-item.active .pill-lime { background:rgba(163,230,53,0.18); }
+  .nav-item.filtered { background:rgba(196,181,253,0.10); border:1px solid rgba(196,181,253,0.22); color:#ddd6fe; padding:6px 9px; }
+  .dot { width:8px; height:8px; border-radius:50%; flex-shrink:0; }
+  .seg-btn { padding:6px 12px; border-radius:7px; font-size:13px; color:#8a93a4; cursor:pointer; transition:all 120ms; user-select:none; }
+  .seg-btn:hover { color:#dfe3ea; }
+  .seg-btn.on { background:rgba(255,255,255,0.06); color:#ecfccb; }
+  .seg-btn.disabled { color:#3b475c; cursor:not-allowed; }
+  .seg-btn.disabled:hover { color:#3b475c; }
+  .row-num { width:22px; height:22px; display:inline-flex; align-items:center; justify-content:center; background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.06); border-radius:6px; font-family:'JetBrains Mono',monospace; font-size:11px; color:#b8bfcc; flex-shrink:0; }
+  .gear:hover { color:#ecfccb; transform:rotate(15deg); transition:all 200ms; }
+  .pulse-dot { width:6px; height:6px; border-radius:50%; background:#a3e635; box-shadow:0 0 0 0 rgba(163,230,53,0.7); animation:pulse 2s infinite; flex-shrink:0; }
+  .pulse-dot.amber { background:#fbbf24; animation-name:pulse-amber; }
+  .pulse-dot.red { background:#fca5a5; animation-name:pulse-red; }
+  @keyframes pulse { 0%{box-shadow:0 0 0 0 rgba(163,230,53,.55);} 70%{box-shadow:0 0 0 6px rgba(163,230,53,0);} 100%{box-shadow:0 0 0 0 rgba(163,230,53,0);} }
+  @keyframes pulse-amber { 0%{box-shadow:0 0 0 0 rgba(251,191,36,.55);} 70%{box-shadow:0 0 0 6px rgba(251,191,36,0);} 100%{box-shadow:0 0 0 0 rgba(251,191,36,0);} }
+  @keyframes pulse-red { 0%{box-shadow:0 0 0 0 rgba(252,165,165,.55);} 70%{box-shadow:0 0 0 6px rgba(252,165,165,0);} 100%{box-shadow:0 0 0 0 rgba(252,165,165,0);} }
+  .briefing-grad { background:radial-gradient(120% 80% at 0% 0%,rgba(163,230,53,0.05) 0%,transparent 50%),linear-gradient(180deg,#0d1219 0%,#0a0e14 100%); }
+  .spin { animation:spin 800ms linear infinite; }
+  @keyframes spin { to { transform:rotate(360deg); } }
+  .hidden { display:none !important; }
+  #toast { position:fixed; top:20px; left:50%; transform:translateX(-50%); background:#11161e; color:#ecfccb; padding:10px 18px; border-radius:10px; font-size:13px; border:1px solid rgba(163,230,53,0.3); box-shadow:0 4px 20px rgba(0,0,0,0.6); z-index:50; opacity:0; pointer-events:none; transition:opacity 200ms; max-width:60vw; }
+  #toast.show { opacity:1; }
+  .bar { height:8px; background:rgba(255,255,255,0.04); border-radius:4px; overflow:hidden; }
+  .bar > span { display:block; height:100%; background:linear-gradient(90deg,#a3e635,#84cc16); border-radius:4px; }
+  a.url-link { color:#a5f3fc; text-decoration:none; word-break:break-all; }
+  a.url-link:hover { color:#67e8f9; text-decoration:underline; }
+  .ext-btn { color:#5b6577; cursor:pointer; transition:color 120ms; }
+  .ext-btn:hover { color:#bef264; }
+  .kpi-clickable { cursor:pointer; transition:transform 120ms, box-shadow 120ms; }
+  .kpi-clickable:hover { transform:translateY(-2px); box-shadow:0 4px 16px -4px rgba(251,191,36,0.30), 0 1px 0 0 rgba(255,255,255,0.06) inset; }
+  .drawer-trigger { cursor:pointer; }
+  #drawer-backdrop { position:fixed; inset:0; background:rgba(0,0,0,0.5); backdrop-filter:blur(2px); z-index:40; opacity:0; pointer-events:none; transition:opacity 200ms; }
+  #drawer-backdrop.show { opacity:1; pointer-events:auto; }
+  #drawer { position:fixed; top:0; right:0; bottom:0; width:600px; max-width:92vw; background:linear-gradient(180deg,#0d1219 0%,#0a0e14 100%); border-left:1px solid rgba(255,255,255,0.08); z-index:45; transform:translateX(100%); transition:transform 280ms cubic-bezier(0.4,0,0.2,1); display:flex; flex-direction:column; box-shadow:-8px 0 32px rgba(0,0,0,0.5); }
+  #drawer.show { transform:translateX(0); }
+  #drawer .drawer-head { padding:18px 20px; border-bottom:1px solid rgba(255,255,255,0.05); display:flex; align-items:center; justify-content:space-between; flex-shrink:0; }
+  #drawer .drawer-body { padding:18px 20px; overflow-y:auto; flex:1; }
+  .drawer-close { width:28px; height:28px; display:flex; align-items:center; justify-content:center; border-radius:7px; color:#8a93a4; cursor:pointer; transition:all 120ms; }
+  .drawer-close:hover { background:rgba(255,255,255,0.06); color:#dfe3ea; }
+  .window-chip { display:flex; flex-direction:column; align-items:center; padding:10px 8px; background:rgba(255,255,255,0.02); border:1px solid rgba(255,255,255,0.05); border-radius:9px; flex:1; }
+  .window-chip.primary { background:rgba(251,191,36,0.06); border-color:rgba(251,191,36,0.22); }
+  /* Status indicator on element (decoded from data-status attr) */
+  [data-status="planned"]::after { content:" ⏳"; font-size:0.8em; opacity:0.6; }
+</style>
+</head>
+<body class="min-h-screen">
+<div id="toast"></div>
+
+<!-- ============== DRAWER (right slide) ============== -->
+<div id="drawer-backdrop" data-action="close-drawer"></div>
+<aside id="drawer">
+  <div class="drawer-head">
+    <div>
+      <div class="label text-[10.5px] text-ink-400 mb-1" id="drawer-kicker">DETAIL PANEL</div>
+      <h3 class="text-[15px] font-semibold text-ink-50" id="drawer-title">— · 详细</h3>
+    </div>
+    <span class="drawer-close" data-action="close-drawer" title="关闭 (Esc)">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+    </span>
+  </div>
+  <div class="drawer-body scrollbar-thin" id="drawer-body"></div>
+</aside>
+
+<div class="flex min-h-screen">
+  <!-- ============== SIDEBAR ============== -->
+  <aside class="w-[256px] shrink-0 border-r border-white/[0.04] flex flex-col">
+    <div class="px-5 pt-5 pb-5 flex items-start justify-between">
+      <div>
+        <div class="label text-[11px] text-ink-300 mb-1.5" id="brand-label">MY RADAR</div>
+        <div class="text-[15px] font-semibold text-ink-50 tracking-tight">微信群聊·情报</div>
+        <div class="text-[11.5px] text-ink-400 mt-1" id="brand-tagline">私有看板 · 高信号优先</div>
+      </div>
+      <button class="gear text-ink-400 mt-1" title="打开设置面板" data-action="open-settings">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+      </button>
+    </div>
+
+    <nav class="px-3 space-y-1">
+      <div class="nav-item active" data-view="brief" title="主驾驶舱: KPI + 简报 + 三列">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="7" height="9"></rect><rect x="14" y="3" width="7" height="5"></rect><rect x="14" y="12" width="7" height="9"></rect><rect x="3" y="16" width="7" height="5"></rect></svg>
+        <span class="flex-1">看板</span><span class="pill pill-lime">Brief</span>
+      </div>
+      <div class="nav-item" data-view="live" title="时间线: focus+actions 按时间倒序">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline></svg>
+        <span class="flex-1">信号流</span><span class="pill pill-cyan">Live</span>
+      </div>
+      <div class="nav-item" data-view="cross" title="跨群发言者 + 消息类型分布">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 2L2 7l10 5 10-5-10-5z"></path><path d="M2 17l10 5 10-5"></path><path d="M2 12l10 5 10-5"></path></svg>
+        <span class="flex-1">话题雷达</span><span class="pill pill-violet">Cross</span>
+      </div>
+      <div class="nav-item" data-view="link" title="真 URL 分类 + 群文化镜子">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
+        <span class="flex-1">链接情报</span><span class="pill pill-blue">Link</span>
+      </div>
+    </nav>
+
+    <div class="mt-7 px-5 mb-2"><span class="label text-[10.5px] text-ink-400">GROUPS</span></div>
+    <div class="px-3 space-y-1">
+      <div class="nav-item drawer-trigger" data-action="open-groups" title="所有 64 群按最近活动倒序">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="4" width="18" height="16" rx="2"></rect><polyline points="3 8 12 13 21 8"></polyline></svg>
+        <span class="flex-1">所有群</span><span class="num text-[12px] text-ink-300" data-bind="total_groups">—</span>
+      </div>
+      <div class="nav-item drawer-trigger" data-action="open-favorites" title="微信收藏内容 (调 wx favorites)">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><polygon points="12 2 15 8.5 22 9.3 17 14.1 18.2 21 12 17.8 5.8 21 7 14.1 2 9.3 9 8.5 12 2"></polygon></svg>
+        <span class="flex-1">收藏</span><span class="num text-[12px] text-ink-400" id="fav-count">—</span>
+      </div>
+      <div class="nav-item drawer-trigger" data-action="open-ungrouped" title="不在 collections 里的群 (真值)">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>
+        <span class="flex-1">未分组</span><span class="num text-[12px] text-ink-300" id="ungrouped-count">—</span>
+      </div>
+    </div>
+
+    <div class="mt-6 px-5 mb-2 flex items-center justify-between">
+      <span class="label text-[10.5px] text-ink-400">COLLECTIONS</span>
+      <span class="text-[10.5px] text-ink-500">点击过滤</span>
+    </div>
+    <div class="px-3 space-y-0.5 pb-4 overflow-y-auto scrollbar-thin" id="collections"></div>
+
+    <div class="mt-auto px-5 py-3 border-t border-white/[0.04] flex items-center gap-2 text-[11px] drawer-trigger" id="daemon-status" data-action="open-daemon" title="点击看 wx-daemon 真实状态">
+      <span class="pulse-dot" id="status-dot"></span>
+      <span class="text-ink-400 font-mono" id="status-name">wx-daemon</span>
+      <span class="text-ink-400" id="status-state">检查中…</span>
+      <span class="text-ink-500 font-mono ml-auto" id="status-pid">—</span>
+    </div>
+  </aside>
+
+  <!-- ============== MAIN ============== -->
+  <main class="flex-1 flex flex-col min-w-0">
+    <header class="px-8 pt-6 pb-5 border-b border-white/[0.04]">
+      <div class="flex items-end justify-between gap-6 flex-wrap">
+        <div>
+          <div class="label text-[11px] text-lime/90 mb-1 flex items-center gap-3">
+            <span id="view-title">DAILY INTELLIGENCE</span>
+            <span id="mode-badge" class="pill pill-ghost normal-case tracking-normal">— · 加载中</span>
+          </div>
+          <h1 class="text-[26px] font-semibold tracking-tight text-ink-50" id="view-heading">驾驶舱·情报看板</h1>
+          <div class="text-[12.5px] text-ink-400 mt-1.5">
+            <span data-bind="date_range">—</span> · 共 <span class="num text-ink-200" data-bind="total_groups">—</span> 个群
+            <span id="window-badge" class="ml-2 pill pill-cyan">窗口: <span id="window-label">30d</span></span>
+            <span id="filter-badge" class="ml-2 pill pill-violet hidden">已过滤: <span id="filter-name"></span> <span class="ml-1 cursor-pointer" data-action="clear-filter">×</span></span>
+          </div>
+        </div>
+        <div class="flex items-center gap-3 flex-wrap">
+          <div class="card-soft px-3 py-2 flex items-center gap-2.5 text-[13px] cursor-pointer" data-action="pick-date" title="改 snapshot 日期 (仅影响 label, 真按日期回查需要新 endpoint)">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" class="text-ink-400"><rect x="3" y="4" width="18" height="18" rx="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+            <span class="num text-ink-100" data-bind="snapshot_date">2026/05/23</span>
+            <input type="date" id="date-input" class="hidden" />
+          </div>
+          <div class="card-soft p-1 flex gap-0.5" data-segment="range" title="切窗口 → 真重查 KPI">
+            <span class="seg-btn" data-val="day"   data-days="1">日</span>
+            <span class="seg-btn" data-val="week"  data-days="7">周</span>
+            <span class="seg-btn on" data-val="month" data-days="30">月</span>
+            <span class="seg-btn" data-val="quarter" data-days="90">季</span>
+            <span class="seg-btn" data-val="year"   data-days="365">年</span>
+            <span class="seg-btn disabled" data-val="custom" title="自定义需要日期范围 UI, backlog">自定义</span>
+          </div>
+          <div class="card-soft p-1 flex gap-0.5" data-segment="mode" title="聚合粒度: 仅传给 server 后端 (当前 by_type 图是月级, 模式细分待实现)">
+            <span class="seg-btn on" data-val="auto">自动</span>
+            <span class="seg-btn disabled" data-val="hour" title="按小时分布 backlog">时</span>
+            <span class="seg-btn disabled" data-val="day"  title="按日聚合 backlog">日</span>
+            <span class="seg-btn disabled" data-val="week" title="按周聚合 backlog">周</span>
+          </div>
+          <button class="card-soft px-3 py-2 text-[13px] text-ink-200 hover:text-ink-50 flex items-center gap-2" data-action="fullsync" id="btn-fullsync" title="触发 launchd 任务跑完整 4 件套 (stats+links+mentions+llm, ~38s + ¥0.17)">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><ellipse cx="12" cy="5" rx="9" ry="3"></ellipse><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"></path><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"></path></svg>
+            全量同步
+          </button>
+          <button data-action="refresh" id="btn-refresh" class="px-3.5 py-2 text-[13px] font-medium flex items-center gap-2 rounded-lg" title="清 server 60s 缓存, 重读已有 JSON (不重跑 wx-cli, 快)" style="background:linear-gradient(180deg,#a3e635 0%,#84cc16 100%);color:#0a0e14;box-shadow:0 1px 0 0 rgba(255,255,255,0.3) inset,0 1px 2px rgba(0,0,0,0.4);">
+            <svg id="btn-refresh-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg>
+            重扫
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <div class="px-8 py-6 space-y-5 flex-1">
+      <!-- ========== VIEW: BRIEF ========== -->
+      <section id="view-brief">
+        <section class="grid grid-cols-4 gap-4">
+          <div class="card p-5 relative overflow-hidden">
+            <div class="flex items-center justify-between mb-3">
+              <div class="flex items-center gap-2 text-ink-300 text-[13px]">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" class="text-lime"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline></svg>
+                活跃群
+              </div>
+              <span class="label text-[9.5px] text-ink-500">METRIC</span>
+            </div>
+            <div class="num text-[40px] font-semibold text-lime leading-none tracking-tight" data-bind="active_groups">—</div>
+            <div class="text-[12px] text-ink-400 mt-2.5">共 <span class="num text-ink-200" data-bind="total_groups">—</span> 群 · 窗口 <span class="num" data-bind="window_label">30d</span></div>
+          </div>
+          <div class="card p-5">
+            <div class="flex items-center justify-between mb-3">
+              <div class="flex items-center gap-2 text-ink-300 text-[13px]">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" class="text-ink-300"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+                总消息
+              </div>
+              <span class="label text-[9.5px] text-ink-500">METRIC</span>
+            </div>
+            <div class="num text-[40px] font-semibold text-ink-50 leading-none tracking-tight" data-bind="total_messages_fmt">—</div>
+            <div class="text-[12px] text-ink-400 mt-2.5" data-bind="total_msg_subtext">—</div>
+          </div>
+          <div class="card kpi-clickable p-5 relative overflow-hidden" data-action="open-mentions" title="点击展开看 mentions 真实详情 (谁/什么/什么时候)">
+            <div class="absolute -top-12 -right-12 w-32 h-32 rounded-full" style="background:radial-gradient(circle,rgba(251,191,36,0.10) 0%,transparent 60%)"></div>
+            <div class="flex items-center justify-between mb-3 relative">
+              <div class="flex items-center gap-2 text-ink-300 text-[13px]">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" class="text-accent-amber"><circle cx="12" cy="12" r="4"></circle><path d="M16 8v5a3 3 0 0 0 6 0v-1a10 10 0 1 0-3.92 7.94"></path></svg>
+                @ 我的
+              </div>
+              <div class="flex items-center gap-1.5">
+                <span class="label text-[9.5px] text-ink-500">METRIC</span>
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" class="text-ink-500"><polyline points="9 18 15 12 9 6"></polyline></svg>
+              </div>
+            </div>
+            <div class="num text-[40px] font-semibold text-accent-amber leading-none tracking-tight relative" data-bind="at_me">—</div>
+            <div class="text-[12px] text-ink-400 mt-2.5" data-bind="at_me_subtext">—</div>
+          </div>
+          <div class="card p-5">
+            <div class="flex items-center justify-between mb-3">
+              <div class="flex items-center gap-2 text-ink-300 text-[13px]">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" class="text-ink-300"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+                静默群
+              </div>
+              <span class="label text-[9.5px] text-ink-500">METRIC</span>
+            </div>
+            <div class="num text-[40px] font-semibold text-ink-50 leading-none tracking-tight" data-bind="silent">—</div>
+            <div class="text-[12px] text-ink-400 mt-2.5">窗口内无活动</div>
+          </div>
+        </section>
+
+        <section class="card briefing-grad p-5 flex items-start gap-5 mt-5">
+          <div class="flex-1 min-w-0">
+            <div class="flex items-center gap-2 mb-2"><span class="label text-[10.5px] text-ink-400">BRIEFING NOTE</span><span class="pill pill-ghost normal-case tracking-normal text-[10px]">LLM · 24h 锁定</span></div>
+            <div class="flex items-center gap-2 mb-2">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="text-lime"><polygon points="12 2 15 8.5 22 9.3 17 14.1 18.2 21 12 17.8 5.8 21 7 14.1 2 9.3 9 8.5 12 2"></polygon></svg>
+              <span class="text-[14.5px] font-semibold text-ink-50" data-bind="briefing_title">今日情报简报</span>
+            </div>
+            <div class="text-[12.5px] text-ink-300 leading-relaxed" data-bind="briefing_body" id="briefing-body">加载中…</div>
+          </div>
+          <button class="card-soft px-3 py-2 text-[12.5px] text-ink-200 hover:text-ink-50 flex items-center gap-2 shrink-0" data-action="copy-briefing" title="复制简报全文到剪贴板">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="9" y="9" width="13" height="13" rx="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+            复制摘要
+          </button>
+        </section>
+
+        <section class="grid grid-cols-3 gap-4 mt-5">
+          <div class="card p-5">
+            <div class="flex items-center justify-between mb-4">
+              <div class="flex items-center gap-2"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" class="text-lime"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="6"></circle><circle cx="12" cy="12" r="2"></circle></svg><h3 class="text-[14px] font-semibold text-ink-50">最值得关注</h3></div>
+              <span class="text-[11.5px] text-ink-400"><span class="num" data-bind="focus_count">—</span> 条</span>
+            </div>
+            <div class="space-y-4" id="col-focus"></div>
+          </div>
+          <div class="card p-5">
+            <div class="flex items-center justify-between mb-4">
+              <div class="flex items-center gap-2"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" class="text-accent-amber"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg><h3 class="text-[14px] font-semibold text-ink-50">可行动项</h3></div>
+              <span class="text-[11.5px] text-ink-400"><span class="num" data-bind="actions_count">—</span> 个</span>
+            </div>
+            <div class="space-y-4" id="col-actions"></div>
+          </div>
+          <div class="card p-5">
+            <div class="flex items-center justify-between mb-4">
+              <div class="flex items-center gap-2"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" class="text-accent-violet"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle></svg><h3 class="text-[14px] font-semibold text-ink-50">情报源</h3></div>
+              <span class="text-[11.5px] text-ink-400"><span class="num" data-bind="sources_count">—</span> 人</span>
+            </div>
+            <div class="space-y-3" id="col-sources"></div>
+          </div>
+        </section>
+      </section>
+
+      <!-- ========== VIEW: LIVE ========== -->
+      <section id="view-live" class="hidden">
+        <div class="card p-5">
+          <div class="flex items-center justify-between mb-4">
+            <div class="flex items-center gap-2"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" class="text-accent-cyan"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline></svg><h3 class="text-[14px] font-semibold text-ink-50">信号流 · 跨群高信号时间线</h3></div>
+            <span class="text-[11.5px] text-ink-400">focus + actions 按时间倒序 · <span id="live-count">0</span> 条</span>
+          </div>
+          <p class="text-[12px] text-ink-500 mb-4">合并最值得关注 + 可行动项. 关注 = lime / 行动 = amber.</p>
+          <div class="space-y-3" id="live-list"></div>
+        </div>
+      </section>
+
+      <!-- ========== VIEW: CROSS ========== -->
+      <section id="view-cross" class="hidden">
+        <div class="grid grid-cols-3 gap-4">
+          <div class="card p-5 col-span-2">
+            <div class="flex items-center justify-between mb-4">
+              <div class="flex items-center gap-2"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" class="text-accent-violet"><path d="M12 2L2 7l10 5 10-5-10-5z"></path></svg><h3 class="text-[14px] font-semibold text-ink-50">话题雷达 · 跨群发言者</h3></div>
+              <span class="text-[11.5px] text-ink-400"><span id="cross-count">0</span> 人</span>
+            </div>
+            <p class="text-[12px] text-ink-500 mb-4">关注这些人就抓住跨群话题节点.</p>
+            <div class="space-y-3" id="cross-senders"></div>
+          </div>
+          <div class="card p-5">
+            <div class="flex items-center gap-2 mb-4"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" class="text-accent-cyan"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg><h3 class="text-[14px] font-semibold text-ink-50">消息类型分布</h3></div>
+            <p class="text-[12px] text-ink-500 mb-3">过去 30 天 · 跨 <span data-bind="total_groups">—</span> 群</p>
+            <div class="space-y-2.5" id="cross-bytype"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ========== VIEW: LINK ========== -->
+      <section id="view-link" class="hidden space-y-5">
+        <div class="card p-5" id="link-summary"></div>
+        <div class="grid grid-cols-3 gap-4">
+          <div class="card p-5 col-span-2">
+            <div class="flex items-center justify-between mb-4">
+              <div class="flex items-center gap-2"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" class="text-accent-blue"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path></svg><h3 class="text-[14px] font-semibold text-ink-50">真 URL 列表 (wx history --type link)</h3></div>
+              <span class="text-[11.5px] text-ink-400"><span id="link-count">0</span> 条 / 过去 <span id="link-window">30</span>d</span>
+            </div>
+            <div class="space-y-3" id="link-list"></div>
+          </div>
+          <div class="card p-5">
+            <div class="flex items-center gap-2 mb-4"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" class="text-accent-violet"><rect x="3" y="4" width="18" height="16" rx="2"></rect></svg><h3 class="text-[14px] font-semibold text-ink-50">分享活跃群 Top 10</h3></div>
+            <p class="text-[12px] text-ink-500 mb-3">按窗口内 link share 数排序</p>
+            <div class="space-y-2" id="link-by-group"></div>
+          </div>
+        </div>
+        <div class="card p-5">
+          <div class="flex items-center justify-between mb-4">
+            <div class="flex items-center gap-2"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" class="text-lime"><polygon points="12 2 15 8.5 22 9.3 17 14.1 18.2 21 12 17.8 5.8 21 7 14.1 2 9.3 9 8.5 12 2"></polygon></svg><h3 class="text-[14px] font-semibold text-ink-50">LLM 标记的高信号 (无 URL 也算)</h3></div>
+            <span class="text-[11.5px] text-ink-400"><span id="link-llm-count">0</span> 条</span>
+          </div>
+          <div class="space-y-3" id="link-llm-list"></div>
+        </div>
+      </section>
+    </div>
+  </main>
+</div>
+
+<script>
+// ============== STATE ==============
+const FALLBACK = {
+  date_range:'2026-04-24 ~ 2026-05-23', snapshot_date:'2026/05/23',
+  kpi:{active_groups:0,total_groups:0,total_messages:0,avg_per_group:0,at_me:0,silent:0,window_hours:720},
+  briefing:{title:'今日情报简报',body:'(加载中)'},
+  collections:[],focus:[],actions:[],sources:[],
+  _extras:{by_type:[]},_mode:'inline'
+};
+const TAG_COLOR = {'工具/产品':'cyan','链接信号':'blue','可跟进':'green','机会/需求':'yellow','看报名/活动':'amber','看采购/团购':'pink','可回复推荐':'violet'};
+
+let DATA = JSON.parse(JSON.stringify(FALLBACK));
+let CURRENT_VIEW = 'brief';
+let FILTER_GROUP = null;
+let QUERY = { days: 30, date: null, mode: 'auto' };
+let DRAWER_VIEW = null;
+
+// ============== TOAST ==============
+function toast(msg, ms=2500) {
+  const el = document.getElementById('toast');
+  el.textContent = msg; el.classList.add('show');
+  clearTimeout(toast._t);
+  toast._t = setTimeout(() => el.classList.remove('show'), ms);
+}
+
+// ============== FETCH ==============
+function _q() {
+  const p = new URLSearchParams();
+  if (QUERY.days !== 30) p.set('days', QUERY.days);
+  if (QUERY.date) p.set('date', QUERY.date);
+  if (QUERY.mode !== 'auto') p.set('mode', QUERY.mode);
+  const s = p.toString();
+  return s ? '?' + s : '';
+}
+
+async function load(force=false) {
+  const icon = document.getElementById('btn-refresh-icon');
+  if (icon) icon.classList.add('spin');
+  try {
+    if (force) {
+      try { await fetch('/api/refresh' + _q(), {cache:'no-store'}); } catch {}
+    }
+    const r = await fetch('/api/data' + _q(), {cache:'no-store'});
+    if (r.ok) {
+      const j = await r.json();
+      DATA = { ...FALLBACK, ...j };
+      if (j.briefing) DATA.briefing = { ...FALLBACK.briefing, ...j.briefing };
+      if (j.kpi)      DATA.kpi      = { ...FALLBACK.kpi,      ...j.kpi };
+      if (j._extras)  DATA._extras  = { ...FALLBACK._extras,  ...j._extras };
+    }
+  } catch (e) {
+    DATA._mode='inline'; DATA._error='network: ' + (e.message||e);
+  }
+  render();
+  updateUngroupedCount();
+  if (icon) setTimeout(() => icon.classList.remove('spin'), 400);
+}
+
+async function updateDaemonStatus() {
+  try {
+    const r = await fetch('/api/daemon-status', {cache:'no-store'});
+    if (!r.ok) return;
+    const d = await r.json();
+    const dot = document.getElementById('status-dot');
+    const state = document.getElementById('status-state');
+    const pid = document.getElementById('status-pid');
+    if (d.running) {
+      dot.className = 'pulse-dot';
+      state.textContent = '运行中';
+      state.className = 'text-ink-400';
+      pid.textContent = `PID ${d.pid}`;
+      pid.className = 'text-ink-500 font-mono ml-auto';
+    } else {
+      dot.className = 'pulse-dot amber';
+      state.textContent = '未运行';
+      state.className = 'text-accent-amber';
+      pid.textContent = d.error ? '(err)' : '(down)';
+    }
+  } catch {}
+}
+
+async function updateFavoritesCount() {
+  try {
+    const r = await fetch('/api/favorites', {cache:'no-store'});
+    if (!r.ok) return;
+    const d = await r.json();
+    document.getElementById('fav-count').textContent = d.n || 0;
+  } catch {}
+}
+
+function updateUngroupedCount() {
+  // 64 total - 14 in collections = 50 ungrouped (rough)
+  const total = (DATA.kpi||{}).total_groups || 0;
+  const inColl = (DATA.collections||[]).length;
+  const ungrouped = Math.max(0, total - inColl);
+  document.getElementById('ungrouped-count').textContent = ungrouped;
+}
+
+// ============== RENDER ==============
+function escapeHtml(s) { return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function fmtInt(n) { return Number(n||0).toLocaleString('en-US'); }
+
+const VIEW_HEAD = {
+  brief: {title:'DAILY INTELLIGENCE', heading:'驾驶舱·情报看板'},
+  live:  {title:'LIVE SIGNAL STREAM', heading:'信号流·跨群时间线'},
+  cross: {title:'CROSS-GROUP RADAR',  heading:'话题雷达·跨群节点'},
+  link:  {title:'LINK INTELLIGENCE',  heading:'链接情报·LLM 标记'},
+};
+
+function render() {
+  // mode badge
+  const badge = document.getElementById('mode-badge');
+  const mode = DATA._mode || 'unknown';
+  const err = DATA._error;
+  let cls='pill-ghost', text=mode;
+  if (mode==='real-full')          { cls='pill-lime';  text='wx-cli + qwen · live'; }
+  else if (mode==='real-kpi-only') { cls='pill-lime';  text='wx-cli · KPI real'; }
+  else if (mode==='mock')          { cls='pill-amber'; text='mock (wx-daemon offline)'; }
+  else if (mode==='inline')        { cls='pill-ghost'; text='inline · static'; }
+  badge.className = 'pill normal-case tracking-normal ' + cls;
+  badge.textContent = text;
+  if (err) badge.title = err;
+
+  // view title
+  const vh = VIEW_HEAD[CURRENT_VIEW] || VIEW_HEAD.brief;
+  document.getElementById('view-title').textContent = vh.title;
+  document.getElementById('view-heading').textContent = vh.heading;
+
+  // window badge
+  const windowLabel = `${QUERY.days}d`;
+  document.getElementById('window-label').textContent = windowLabel;
+
+  // scalar bindings
+  const k = DATA.kpi || {};
+  const totalMsgWindow = k.total_messages_window_days || 30;
+  const binds = {
+    active_groups: k.active_groups, total_groups: k.total_groups,
+    total_messages_fmt: fmtInt(k.total_messages),
+    total_msg_subtext: QUERY.days === totalMsgWindow
+      ? `过去 ${totalMsgWindow}d · 平均每群 ${k.avg_per_group||0}`
+      : `🔒 ${totalMsgWindow}d 锁定 (stats.json 单窗口) · 当前选 ${QUERY.days}d`,
+    avg_per_group: k.avg_per_group, at_me: k.at_me, silent: k.silent, window_hours: k.window_hours,
+    at_me_subtext: k.at_me_window_days
+      ? `过去 ${k.at_me_window_days}d · ${k.at_me_unique_groups||'?'} 群 @你`
+      : '需要回复',
+    window_label: windowLabel,
+    date_range: DATA.date_range, snapshot_date: DATA.snapshot_date,
+    briefing_title: (DATA.briefing||{}).title,
+    focus_count: (DATA.focus||[]).length, actions_count: (DATA.actions||[]).length, sources_count: (DATA.sources||[]).length,
+  };
+  document.querySelectorAll('[data-bind]').forEach(el => {
+    const key = el.getAttribute('data-bind');
+    if (key in binds && binds[key] !== undefined && binds[key] !== null) el.textContent = binds[key];
+  });
+
+  // briefing body
+  const b = DATA.briefing || {};
+  const bodyEl = document.getElementById('briefing-body');
+  if (bodyEl) bodyEl.innerHTML = `<span class="text-ink-200 font-medium">必看：</span>${escapeHtml(b.body || '')}`;
+
+  // collections
+  document.getElementById('collections').innerHTML = (DATA.collections||[]).map(c => `
+    <div class="nav-item${FILTER_GROUP === c.name ? ' filtered' : ''}" data-collection="${escapeHtml(c.name)}" title="点击过滤 focus/actions (再点取消)">
+      <span class="dot" style="background:${escapeHtml(c.dot||'#5b6577')}"></span>
+      <span class="flex-1 truncate">${escapeHtml(c.name)}</span>
+      <span class="num text-[12px] text-ink-300">${escapeHtml(c.n)}</span>
+    </div>`).join('');
+
+  // filter badge
+  const fb = document.getElementById('filter-badge');
+  if (FILTER_GROUP) { fb.classList.remove('hidden'); document.getElementById('filter-name').textContent = FILTER_GROUP; }
+  else fb.classList.add('hidden');
+
+  // focus / actions / sources
+  const focusList = (DATA.focus||[]).filter(f => !FILTER_GROUP || (f.group||'').includes(FILTER_GROUP.slice(0,8)));
+  document.getElementById('col-focus').innerHTML = focusList.map((f,i) => `
+    <div class="group"><div class="flex gap-3">
+      <span class="row-num mt-0.5">${i+1}</span>
+      <div class="flex-1 min-w-0">
+        <div class="text-[13.5px] text-ink-100 leading-snug mb-1.5">${escapeHtml(f.title)}</div>
+        <div class="text-[11.5px] text-ink-400 mb-2 truncate">${escapeHtml(f.group)} <span class="text-ink-500 num ml-1">${escapeHtml(f.time||'')}</span></div>
+        <div class="flex flex-wrap gap-1.5">${(f.tags||[]).map(t => `<span class="pill pill-${TAG_COLOR[t]||'ghost'}">${escapeHtml(t)}</span>`).join('')}</div>
+      </div>
+      <div class="flex flex-col items-end gap-1 shrink-0">
+        <span class="num text-[12px] text-ink-300">${escapeHtml(f.count||'')}</span>
+        <span class="ext-btn" data-action="copy-focus" data-idx="${i}" title="复制原文">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="9" y="9" width="13" height="13" rx="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+        </span>
+      </div>
+    </div></div>`).join('') || `<div class="text-[12px] text-ink-500">${FILTER_GROUP ? '无符合过滤条目' : '无 focus 数据'}</div>`;
+
+  const actionList = (DATA.actions||[]).filter(a => !FILTER_GROUP || (a.group||'').includes(FILTER_GROUP.slice(0,8)));
+  document.getElementById('col-actions').innerHTML = actionList.map((a,i) => `
+    <div data-action="copy-action" data-idx="${i}" class="cursor-pointer hover:bg-white/[0.02] -mx-2 px-2 py-1 rounded" title="点击复制原文">
+      <div class="flex items-center justify-between mb-2"><span class="pill pill-${a.catColor||'amber'}">${escapeHtml(a.cat)}</span><span class="num text-[11.5px] text-ink-500">${escapeHtml(a.time||'')}</span></div>
+      <div class="text-[13px] text-ink-100 leading-snug mb-1.5">${escapeHtml(a.title)}</div>
+      <div class="text-[11.5px] text-ink-400 truncate">${escapeHtml(a.group)}</div>
+    </div>`).join('') || `<div class="text-[12px] text-ink-500">${FILTER_GROUP ? '无符合过滤条目' : '无 action 数据'}</div>`;
+
+  document.getElementById('col-sources').innerHTML = (DATA.sources||[]).map((s,i) => `
+    <div class="flex items-start gap-3">
+      <span class="row-num mt-0.5">${i+1}</span>
+      <div class="flex-1 min-w-0">
+        <div class="flex items-center justify-between mb-1"><span class="text-[13.5px] text-ink-100 font-medium truncate">${escapeHtml(s.name)}</span><span class="num text-[12.5px] text-ink-200 shrink-0">${escapeHtml(s.n)}</span></div>
+        <div class="flex items-center justify-between gap-2"><span class="text-[11.5px] text-ink-400 truncate">${escapeHtml(s.where)}</span><span class="text-[11px] text-ink-500 num shrink-0">${escapeHtml(s.extra||'')}</span></div>
+      </div>
+    </div>`).join('');
+
+  renderLive(); renderCross(); renderLink();
+}
+
+function renderLive() {
+  const merged = [
+    ...(DATA.focus||[]).map(f => ({...f, _src:'focus'})),
+    ...(DATA.actions||[]).map(a => ({...a, _src:'action', tags:[a.cat]})),
+  ].sort((a,b) => (b.time||'').localeCompare(a.time||''));
+  document.getElementById('live-count').textContent = merged.length;
+  document.getElementById('live-list').innerHTML = merged.map(m => `
+    <div class="flex gap-4 items-start py-3 border-b border-white/[0.04] last:border-0">
+      <span class="num text-[12px] text-ink-400 mt-0.5 w-14 shrink-0">${escapeHtml(m.time||'—')}</span>
+      <span class="pill ${m._src==='focus' ? 'pill-lime' : 'pill-amber'} shrink-0 mt-0.5">${m._src==='focus' ? '关注' : '行动'}</span>
+      <div class="flex-1 min-w-0">
+        <div class="text-[13.5px] text-ink-100 leading-snug mb-1">${escapeHtml(m.title)}</div>
+        <div class="text-[11.5px] text-ink-400 truncate">${escapeHtml(m.group)}</div>
+        ${(m.tags||[]).length ? `<div class="flex gap-1.5 mt-1.5">${m.tags.map(t => `<span class="pill pill-${TAG_COLOR[t]||'ghost'}">${escapeHtml(t)}</span>`).join('')}</div>` : ''}
+      </div>
+    </div>`).join('') || `<div class="text-[12px] text-ink-500">暂无时间线数据</div>`;
+}
+
+function renderCross() {
+  const senders = (DATA.sources||[]).map(s => {
+    const m = /(\d+)\s*群/.exec(s.extra||'');
+    return {...s, _crossN: m ? parseInt(m[1]) : 1};
+  }).sort((a,b) => b._crossN - a._crossN || b.n - a.n);
+  document.getElementById('cross-count').textContent = senders.length;
+  document.getElementById('cross-senders').innerHTML = senders.map((s,i) => `
+    <div class="flex items-start gap-3 py-2 border-b border-white/[0.04] last:border-0">
+      <span class="row-num mt-0.5">${i+1}</span>
+      <div class="flex-1 min-w-0">
+        <div class="flex items-center justify-between mb-1">
+          <span class="text-[13.5px] text-ink-100 font-medium truncate">${escapeHtml(s.name)}</span>
+          <div class="flex items-center gap-2 shrink-0"><span class="pill ${s._crossN >= 2 ? 'pill-violet' : 'pill-ghost'}">跨 ${s._crossN} 群</span><span class="num text-[12.5px] text-ink-200">${escapeHtml(s.n)} 条</span></div>
+        </div>
+        <div class="text-[11.5px] text-ink-400 truncate">${escapeHtml(s.where||'(单群)')}</div>
+      </div>
+    </div>`).join('') || `<div class="text-[12px] text-ink-500">无跨群发言数据</div>`;
+
+  const types = ((DATA._extras||{}).by_type)||[];
+  const max = Math.max(1, ...types.map(t => t.count));
+  document.getElementById('cross-bytype').innerHTML = types.map(t => `
+    <div>
+      <div class="flex items-center justify-between mb-1"><span class="text-[12px] text-ink-200">${escapeHtml(t.type)}</span><span class="num text-[11.5px] text-ink-400">${fmtInt(t.count)}</span></div>
+      <div class="bar"><span style="width:${(t.count/max*100).toFixed(1)}%"></span></div>
+    </div>`).join('') || `<div class="text-[12px] text-ink-500">无 by_type 数据</div>`;
+}
+
+function renderLink() {
+  const links = DATA.links_aggregated || [];
+  const summary = ((DATA._extras||{}).links_summary) || {};
+  const windowDays = (DATA._extras||{}).links_window_days || 30;
+  const nReal = summary.n_real || 0;
+  const nJunk = summary.n_junk || 0;
+  const nArticle = (summary.by_category || []).find(c => c.label === '公众号文章')?.n || 0;
+
+  const cats = (summary.by_category || []).map(c =>
+    `<span class="pill ${c.icon==='🚫' ? 'pill-ghost' : 'pill-blue'}">${c.icon} ${escapeHtml(c.label)} ${c.n}</span>`).join(' ');
+  document.getElementById('link-summary').innerHTML = `
+    <div class="flex items-center justify-between mb-3">
+      <div class="flex items-center gap-2"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" class="text-accent-cyan"><circle cx="12" cy="12" r="10"></circle></svg><h3 class="text-[14px] font-semibold text-ink-50">群文化镜子 · 过去 ${windowDays} 天 link share 真相</h3></div>
+      <span class="num text-[12px] text-ink-400">${nReal+nJunk} URL · ${summary.by_group_top10?.length || 0} 群</span>
+    </div>
+    <div class="grid grid-cols-3 gap-4 mb-3">
+      <div><div class="num text-[28px] font-semibold text-lime leading-none">${nReal}</div><div class="text-[11.5px] text-ink-400 mt-1">非垃圾 URL</div></div>
+      <div><div class="num text-[28px] font-semibold text-ink-300 leading-none">${nJunk}</div><div class="text-[11.5px] text-ink-400 mt-1">WeChat 内部跳转</div></div>
+      <div><div class="num text-[28px] font-semibold ${nArticle>0?'text-lime':'text-accent-amber'} leading-none">${nArticle}</div><div class="text-[11.5px] text-ink-400 mt-1">公众号文章 share</div></div>
+    </div>
+    <div class="flex flex-wrap gap-1.5 mb-3">${cats || '<span class="text-[12px] text-ink-500">无数据</span>'}</div>
+    ${nArticle === 0 ? `<div class="text-[12px] text-accent-amber/80 mt-2 leading-relaxed">💡 <span class="text-ink-200 font-medium">真相洞察:</span> 你的群 ${windowDays} 天内 <span class="num">0</span> 条公众号文章 share — 群文化是<span class="text-accent-cyan">视频号 + 营销自动跳转</span>主导. 想要知识情报得另开渠道(订阅号 / RSS / 飞书机器人).</div>` : ''}
+  `;
+
+  document.getElementById('link-count').textContent = links.length;
+  document.getElementById('link-window').textContent = windowDays;
+  document.getElementById('link-list').innerHTML = links.map(l => `
+    <div class="py-3 border-b border-white/[0.04] last:border-0">
+      <div class="flex items-center justify-between mb-1.5"><span class="pill ${l.is_junk?'pill-ghost':'pill-blue'}">${l.cat_icon||'🌐'} ${escapeHtml(l.cat_label||'其他')}</span><span class="num text-[11.5px] text-ink-500">${escapeHtml((l.time||'').slice(-11))}</span></div>
+      ${l.title ? `<div class="text-[13.5px] text-ink-100 leading-snug mb-1">${escapeHtml(l.title)}</div>` : ''}
+      ${l.des ? `<div class="text-[12px] text-ink-300 leading-snug mb-1.5">${escapeHtml(l.des)}</div>` : ''}
+      <a class="url-link text-[12px] block mb-1.5" href="${escapeHtml(l.url)}" target="_blank" rel="noopener" title="${escapeHtml(l.url)}">${escapeHtml(l.url.length > 90 ? l.url.slice(0,90)+'…' : l.url)}</a>
+      <div class="text-[11.5px] text-ink-400 flex items-center gap-2"><span class="truncate">${escapeHtml(l.group||'')}</span><span class="text-ink-600">·</span><span class="shrink-0">${escapeHtml(l.sender||'?')}</span></div>
+    </div>`).join('') || `<div class="text-[12px] text-ink-500 py-4 text-center">本窗口零 URL share</div>`;
+
+  const byGroup = (summary.by_group_top10 || []);
+  const maxN = Math.max(1, ...byGroup.map(g => g.n));
+  document.getElementById('link-by-group').innerHTML = byGroup.map(g => `
+    <div>
+      <div class="flex items-center justify-between mb-1"><span class="text-[12px] text-ink-200 truncate flex-1 pr-2">${escapeHtml(g.group)}</span><span class="num text-[11.5px] text-ink-400 shrink-0">${g.n}</span></div>
+      <div class="bar"><span style="width:${(g.n/maxN*100).toFixed(0)}%"></span></div>
+    </div>`).join('') || `<div class="text-[12px] text-ink-500">无数据</div>`;
+
+  const llmSignals = (DATA.focus||[]).filter(f => (f.tags||[]).includes('链接信号'));
+  document.getElementById('link-llm-count').textContent = llmSignals.length;
+  document.getElementById('link-llm-list').innerHTML = llmSignals.map(f => `
+    <div class="py-3 border-b border-white/[0.04] last:border-0">
+      <div class="flex items-center justify-between mb-1.5"><span class="pill pill-lime">LLM 标·链接信号</span><span class="num text-[11.5px] text-ink-500">${escapeHtml(f.time||'')}</span></div>
+      <div class="text-[13.5px] text-ink-100 leading-snug mb-1">${escapeHtml(f.title)}</div>
+      <div class="text-[11.5px] text-ink-400 truncate">${escapeHtml(f.group)}</div>
+    </div>`).join('') || `<div class="text-[12px] text-ink-500">LLM 本窗口未标 链接信号</div>`;
+}
+
+// ============== VIEW SWITCH ==============
+function switchView(name) {
+  CURRENT_VIEW = name;
+  ['brief','live','cross','link'].forEach(v => document.getElementById(`view-${v}`)?.classList.toggle('hidden', v !== name));
+  document.querySelectorAll('[data-view]').forEach(el => el.classList.toggle('active', el.dataset.view === name));
+  render();
+}
+
+// ============== DRAWER ==============
+function openDrawer(view, title, kicker='DETAIL PANEL') {
+  DRAWER_VIEW = view;
+  document.getElementById('drawer-kicker').textContent = kicker;
+  document.getElementById('drawer-title').textContent = title;
+  document.getElementById('drawer-backdrop').classList.add('show');
+  document.getElementById('drawer').classList.add('show');
+}
+function closeDrawer() {
+  DRAWER_VIEW = null;
+  document.getElementById('drawer-backdrop').classList.remove('show');
+  document.getElementById('drawer').classList.remove('show');
+}
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeDrawer(); });
+
+function renderMentionsDrawer() {
+  const ex = DATA._extras || {}, k = DATA.kpi || {};
+  const windows = ex.mentions_windows || {};
+  const byGroup = ex.mentions_by_group || [];
+  const bySender = ex.mentions_by_sender || [];
+  const recent = ex.mentions_recent || [];
+  const primary = k.at_me_window_days || 7;
+  const maxG = Math.max(1, ...byGroup.map(g => g.n));
+  const maxS = Math.max(1, ...bySender.map(s => s.n));
+  document.getElementById('drawer-body').innerHTML = `
+    <div class="mb-5"><div class="label text-[10.5px] text-ink-400 mb-2">窗口对比</div><div class="flex gap-2">
+      ${['1d','3d','7d','30d'].map(w => {
+        const isPrimary = parseInt(w) === primary;
+        return `<div class="window-chip ${isPrimary?'primary':''}"><div class="num text-[18px] font-semibold ${isPrimary?'text-accent-amber':'text-ink-100'}">${windows[w] ?? '—'}</div><div class="text-[10.5px] text-ink-400 mt-1">${w}</div></div>`;
+      }).join('')}
+    </div><div class="text-[11px] text-ink-500 mt-2">KPI 显示 ${primary}d · 刷新于 ${escapeHtml(ex.mentions_refreshed_at || '?')}</div></div>
+    <div class="mb-5"><div class="label text-[10.5px] text-ink-400 mb-2">最近 ${recent.length} 条 @</div><div class="space-y-3">${recent.map(r => `
+      <div class="card-soft p-3">
+        <div class="flex items-center justify-between mb-1.5"><span class="text-[12.5px] text-ink-100 font-medium truncate flex-1 pr-2">${escapeHtml(r.sender||'?')}</span><span class="num text-[11px] text-ink-500 shrink-0">${escapeHtml((r.time||'').slice(-11))}</span></div>
+        <div class="text-[12px] text-ink-200 leading-snug mb-1.5">${escapeHtml(r.content||'')}</div>
+        <div class="text-[11px] text-ink-400 truncate">${escapeHtml(r.chat||'?')}</div>
+      </div>`).join('') || '<div class="text-[12px] text-ink-500">无</div>'}</div></div>
+    <div class="mb-5"><div class="label text-[10.5px] text-ink-400 mb-2">按群 top 10</div><div class="space-y-2">${byGroup.slice(0,10).map(g => `
+      <div><div class="flex items-center justify-between mb-0.5"><span class="text-[12px] text-ink-200 truncate flex-1 pr-2">${escapeHtml(g.group)}</span><span class="num text-[11px] text-ink-400">${g.n}</span></div><div class="bar"><span style="width:${(g.n/maxG*100).toFixed(0)}%"></span></div></div>`).join('') || '<div class="text-[12px] text-ink-500">无</div>'}</div></div>
+    <div><div class="label text-[10.5px] text-ink-400 mb-2">按 @ 人 top 10</div><div class="space-y-2">${bySender.slice(0,10).map(s => `
+      <div><div class="flex items-center justify-between mb-0.5"><span class="text-[12px] text-ink-200 truncate flex-1 pr-2">${escapeHtml(s.sender)}</span><span class="num text-[11px] text-ink-400">${s.n}</span></div><div class="bar"><span style="width:${(s.n/maxS*100).toFixed(0)}%"></span></div></div>`).join('') || '<div class="text-[12px] text-ink-500">无</div>'}</div></div>
+  `;
+}
+
+async function renderGroupsDrawer() {
+  document.getElementById('drawer-body').innerHTML = '<div class="text-[12px] text-ink-400">加载中…</div>';
+  try {
+    const r = await fetch('/api/all-groups', {cache:'no-store'});
+    const d = await r.json();
+    document.getElementById('drawer-body').innerHTML = `
+      <div class="text-[12px] text-ink-400 mb-3">共 ${d.n} 群 · 按最近活动倒序</div>
+      <div class="space-y-2">${(d.groups||[]).map((g,i) => `
+        <div class="card-soft p-3">
+          <div class="flex items-center justify-between mb-1">
+            <span class="text-[12.5px] text-ink-100 font-medium truncate flex-1 pr-2">${escapeHtml(g.chat)}</span>
+            <span class="num text-[11px] text-ink-500 shrink-0">${escapeHtml(g.time||'')}</span>
+          </div>
+          <div class="flex items-center gap-2 text-[11px] text-ink-400">
+            ${g.unread > 0 ? `<span class="pill pill-amber">${g.unread} 未读</span>` : ''}
+            <span class="pill pill-ghost">${escapeHtml(g.last_msg_type||'?')}</span>
+            <span class="truncate flex-1">${escapeHtml(g.last_sender||'?')}: ${escapeHtml(g.summary||'')}</span>
+          </div>
+        </div>`).join('')}</div>
+    `;
+  } catch (e) { document.getElementById('drawer-body').innerHTML = `<div class="text-[12px] text-accent-amber">加载失败: ${escapeHtml(e.message||e)}</div>`; }
+}
+
+async function renderFavoritesDrawer() {
+  document.getElementById('drawer-body').innerHTML = '<div class="text-[12px] text-ink-400">加载中… (调 wx favorites)</div>';
+  try {
+    const r = await fetch('/api/favorites', {cache:'no-store'});
+    const d = await r.json();
+    if (d.error) {
+      document.getElementById('drawer-body').innerHTML = `<div class="text-[12px] text-accent-amber">wx favorites 失败: ${escapeHtml(d.error)}</div>`;
+      return;
+    }
+    document.getElementById('drawer-body').innerHTML = `
+      <div class="text-[12px] text-ink-400 mb-3">共 ${d.n} 条收藏 (top 100 显示)</div>
+      <div class="space-y-2">${(d.items||[]).map(x => `
+        <div class="card-soft p-3">
+          <div class="flex items-center justify-between mb-1.5"><span class="pill pill-violet">${escapeHtml(x.type||'?')}</span><span class="num text-[11px] text-ink-500">${escapeHtml(x.time||'')}</span></div>
+          ${x.title ? `<div class="text-[12.5px] text-ink-100 leading-snug mb-1">${escapeHtml(x.title)}</div>` : '<div class="text-[12px] text-ink-500 italic">(无标题)</div>'}
+          ${x.des ? `<div class="text-[11.5px] text-ink-300 leading-snug mb-1">${escapeHtml(x.des)}</div>` : ''}
+          ${x.source ? `<div class="text-[11px] text-ink-400 truncate">来源: ${escapeHtml(x.source)}</div>` : ''}
+        </div>`).join('') || '<div class="text-[12px] text-ink-500">无收藏</div>'}</div>
+    `;
+  } catch (e) { document.getElementById('drawer-body').innerHTML = `<div class="text-[12px] text-accent-amber">加载失败: ${escapeHtml(e.message||e)}</div>`; }
+}
+
+function renderUngroupedDrawer() {
+  const total = (DATA.kpi||{}).total_groups || 0;
+  const collNames = new Set((DATA.collections||[]).map(c => c.name));
+  document.getElementById('drawer-body').innerHTML = `
+    <div class="text-[12px] text-ink-400 mb-3">"未分组" = total ${total} − ${collNames.size} (collections 内) = <span class="num text-ink-200">${total - collNames.size}</span> 群</div>
+    <div class="text-[12px] text-ink-500 mb-4">默认 collections 按总消息数 top 14 自动选. 想自定义分组, 写 collections.json 覆盖.</div>
+    <div class="card-soft p-3 mb-3">
+      <div class="text-[12px] text-ink-200 mb-2">当前已分组 ${collNames.size}:</div>
+      <div class="space-y-1">${[...collNames].map(n => `<div class="text-[11.5px] text-ink-400 truncate">· ${escapeHtml(n)}</div>`).join('')}</div>
+    </div>
+    <button class="card-soft px-3 py-2 text-[12.5px] text-ink-200 w-full" data-action="open-groups">查看全 ${total} 群列表 →</button>`;
+}
+
+async function renderDaemonDrawer() {
+  document.getElementById('drawer-body').innerHTML = '<div class="text-[12px] text-ink-400">检查 wx-daemon…</div>';
+  try {
+    const r = await fetch('/api/daemon-status', {cache:'no-store'});
+    const d = await r.json();
+    document.getElementById('drawer-body').innerHTML = `
+      <div class="mb-4">
+        <div class="flex items-center gap-2 mb-2">
+          <span class="pulse-dot ${d.running?'':'amber'}"></span>
+          <span class="text-[14px] font-medium ${d.running?'text-lime':'text-accent-amber'}">${d.running ? '运行中' : '未运行'}</span>
+        </div>
+        ${d.status_text ? `<div class="text-[12px] text-ink-300 font-mono">${escapeHtml(d.status_text)}</div>` : ''}
+      </div>
+      <div class="space-y-2 text-[12px]">
+        <div class="flex justify-between"><span class="text-ink-400">PID:</span><span class="num text-ink-100">${d.pid ?? '—'}</span></div>
+        <div class="flex justify-between"><span class="text-ink-400">PID 文件 mtime:</span><span class="num text-ink-100">${d.pid_file_mtime ? new Date(d.pid_file_mtime*1000).toLocaleString() : '—'}</span></div>
+        <div class="text-ink-400 mt-2">Binary 路径:</div><div class="text-[11px] text-ink-300 break-all font-mono">${escapeHtml(d.exe||'—')}</div>
+        ${d.error ? `<div class="text-accent-amber mt-2">Error: ${escapeHtml(d.error)}</div>` : ''}
+      </div>
+      <div class="mt-5 text-[11.5px] text-ink-500 leading-relaxed">
+        💡 <span class="text-ink-300">daemon 由 wx-cli 首次调用时自动启动 · 数据库密钥在内存 · WeChat 升级后需要重做 sudo wx init</span>
+      </div>`;
+  } catch (e) { document.getElementById('drawer-body').innerHTML = `<div class="text-[12px] text-accent-amber">检查失败: ${escapeHtml(e.message||e)}</div>`; }
+}
+
+function renderSettingsDrawer() {
+  document.getElementById('drawer-body').innerHTML = `
+    <div class="space-y-5">
+      <div>
+        <div class="label text-[10.5px] text-ink-400 mb-2">当前查询参数</div>
+        <div class="card-soft p-3 text-[12px] font-mono">${escapeHtml(JSON.stringify(QUERY, null, 2))}</div>
+      </div>
+      <div>
+        <div class="label text-[10.5px] text-ink-400 mb-2">数据文件状态</div>
+        <div class="space-y-2 text-[12px]">
+          ${[['stats',(DATA._extras||{}).stats_refreshed_at,(DATA._extras||{}).stats_age_sec],
+             ['links',(DATA._extras||{}).links_refreshed_at,(DATA._extras||{}).links_age_sec],
+             ['mentions',(DATA._extras||{}).mentions_refreshed_at,(DATA._extras||{}).mentions_age_sec],
+             ['llm',(DATA._extras||{}).llm_refreshed_at,(DATA._extras||{}).llm_age_sec]
+          ].map(([n,t,a]) => `<div class="flex justify-between"><span class="text-ink-400">${n}.json:</span><span class="text-ink-200">${t ? `${escapeHtml(t)} (${a||'?'}s 前)` : '—'}</span></div>`).join('')}
+        </div>
+      </div>
+      <div>
+        <div class="label text-[10.5px] text-ink-400 mb-2">操作</div>
+        <div class="space-y-2">
+          <button class="card-soft px-3 py-2 text-[12.5px] text-ink-200 w-full text-left" data-action="refresh">⚡ 重扫 (清 server 缓存, 不重跑 wx-cli)</button>
+          <button class="card-soft px-3 py-2 text-[12.5px] text-ink-200 w-full text-left" data-action="fullsync">🔄 全量同步 (launchctl 触发 4 件套, ~38s + ¥0.17)</button>
+        </div>
+      </div>
+      <div>
+        <div class="label text-[10.5px] text-ink-400 mb-2">Backlog (未实现的设置)</div>
+        <div class="space-y-1.5 text-[12px] text-ink-500">
+          <div>⏳ collections.json 编辑器 (手动选群)</div>
+          <div>⏳ launchd 时刻配置 (改 plist 触发时间)</div>
+          <div>⏳ SELF_IDS 编辑器 (改 mentions/llm 过滤的"自己" 标记)</div>
+          <div>⏳ LLM 模型切换 (qwen-plus / claude / deepseek)</div>
+        </div>
+      </div>
+    </div>`;
+}
+
+// ============== EVENT DELEGATION ==============
+document.body.addEventListener('click', async (e) => {
+  const view = e.target.closest('[data-view]');
+  if (view) { switchView(view.dataset.view); toast(`切换到 ${VIEW_HEAD[view.dataset.view].heading}`); return; }
+
+  const action = e.target.closest('[data-action]')?.dataset.action;
+  if (!action) {
+    // collection click → filter
+    const coll = e.target.closest('[data-collection]');
+    if (coll) {
+      const name = coll.dataset.collection;
+      FILTER_GROUP = (FILTER_GROUP === name) ? null : name;
+      render();
+      toast(FILTER_GROUP ? `已过滤到: ${name}` : '已取消过滤');
+      return;
+    }
+    // segment toggle (visual + may trigger reload)
+    const seg = e.target.closest('.seg-btn');
+    if (seg && !seg.classList.contains('disabled')) {
+      const group = seg.closest('[data-segment]');
+      if (group) {
+        group.querySelectorAll('.seg-btn').forEach(s => s.classList.remove('on'));
+        seg.classList.add('on');
+        if (group.dataset.segment === 'range') {
+          const days = parseInt(seg.dataset.days || '30');
+          QUERY.days = days;
+          load();
+          toast(`窗口切到 ${seg.textContent}(${days}d) · 真重查中…`);
+        } else if (group.dataset.segment === 'mode') {
+          QUERY.mode = seg.dataset.val || 'auto';
+          toast(`模式: ${seg.textContent} (传给后端 _query, 真聚合差异化 backlog)`);
+        }
+      }
+    }
+    return;
+  }
+
+  switch(action) {
+    case 'refresh':
+      toast('重扫 · 清 server 缓存重读 4 个 JSON');
+      await load(true);
+      break;
+    case 'fullsync':
+      toast('触发 launchd 全量同步 (~38s + ¥0.17)…');
+      try {
+        const r = await fetch('/api/launchd-fire', {method:'POST'});
+        const d = await r.json();
+        if (d.ok) {
+          toast(d.msg || '已触发 · 约 38s 后自动刷新');
+          setTimeout(() => { toast('全量同步完成 · 重扫拿新数据'); load(true); }, 42000);
+        } else {
+          toast('launchd 触发失败: ' + (d.stderr || d.error || 'unknown'), 5000);
+        }
+      } catch (e) { toast('全量同步失败: ' + e.message, 5000); }
+      break;
+    case 'copy-briefing': {
+      const text = ((DATA.briefing||{}).body || '');
+      try { await navigator.clipboard.writeText(text); toast(`已复制 ${text.length} 字`); }
+      catch (e) { toast('复制失败 (浏览器拒绝): ' + e.message); }
+      break;
+    }
+    case 'copy-focus': {
+      const i = parseInt(e.target.closest('[data-idx]').dataset.idx);
+      const f = (DATA.focus||[])[i];
+      if (f) { try { await navigator.clipboard.writeText(f.title); toast(`已复制焦点: ${f.title.slice(0,30)}…`); } catch (e) { toast('复制失败: ' + e.message); } }
+      break;
+    }
+    case 'copy-action': {
+      const i = parseInt(e.target.closest('[data-idx]').dataset.idx);
+      const a = (DATA.actions||[])[i];
+      if (a) { try { await navigator.clipboard.writeText(`${a.cat} ${a.time}\n${a.title}\n来源: ${a.group}`); toast('已复制行动项'); } catch (e) { toast('复制失败: ' + e.message); } }
+      break;
+    }
+    case 'clear-filter':
+      FILTER_GROUP = null; render(); toast('已清除分组过滤');
+      break;
+    case 'pick-date':
+      document.getElementById('date-input').showPicker?.();
+      break;
+    case 'open-mentions':
+      openDrawer('mentions', '@ 我的 · 谁在等我回复', '@ MENTIONS DETAIL');
+      renderMentionsDrawer();
+      break;
+    case 'open-groups':
+      openDrawer('groups', `所有群 · ${(DATA.kpi||{}).total_groups || '?'} 个`, 'ALL GROUPS');
+      renderGroupsDrawer();
+      break;
+    case 'open-favorites':
+      openDrawer('favorites', '微信收藏 · wx favorites', 'FAVORITES');
+      renderFavoritesDrawer();
+      break;
+    case 'open-ungrouped':
+      openDrawer('ungrouped', '未分组 · 不在 collections 的群', 'UNGROUPED');
+      renderUngroupedDrawer();
+      break;
+    case 'open-daemon':
+      openDrawer('daemon', 'wx-daemon · 真实状态', 'DAEMON');
+      renderDaemonDrawer();
+      break;
+    case 'open-settings':
+      openDrawer('settings', '设置 · 参数 / 数据 / 操作', 'SETTINGS');
+      renderSettingsDrawer();
+      break;
+    case 'close-drawer':
+      closeDrawer();
+      break;
+  }
+});
+
+document.getElementById('date-input').addEventListener('change', (e) => {
+  QUERY.date = e.target.value;
+  load();
+  toast(`日期: ${e.target.value} (server 接收 ?date 参数, 真按日回查 backlog)`);
+});
+
+// ============== BRAND from /api/config ==============
+async function loadBrand() {
+  try {
+    const r = await fetch('/api/config', {cache:'no-store'});
+    if (!r.ok) return;
+    const c = await r.json();
+    if (c.brand) {
+      document.getElementById('brand-label').textContent = c.brand;
+      document.title = `${c.brand} · 微信群聊·情报看板`;
+    }
+    if (c.tagline) document.getElementById('brand-tagline').textContent = c.tagline;
+  } catch {}
+}
+
+// ============== BOOT ==============
+loadBrand();
+load();
+updateDaemonStatus(); setInterval(updateDaemonStatus, 30000);
+updateFavoritesCount();
+</script>
+</body>
+</html>

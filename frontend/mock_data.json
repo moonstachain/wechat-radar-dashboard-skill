@@ -1,0 +1,43 @@
+{
+  "date_range": "2026-04-24 ~ 2026-05-23",
+  "snapshot_date": "2026/05/23",
+  "kpi": {
+    "active_groups": 0,
+    "total_groups": 0,
+    "total_messages": 0,
+    "avg_per_group": 0,
+    "at_me": 0,
+    "silent": 0,
+    "window_hours": 720
+  },
+  "briefing": {
+    "title": "今日情报简报",
+    "generated_at": "—",
+    "body": "(尚未跑 LLM. 跑 `python3 scripts/llm_classify.py` 后这里会有真实摘要.)"
+  },
+  "collections": [
+    {"dot": "#c084fc", "name": "AI Builders Hub",         "n": 0},
+    {"dot": "#86efac", "name": "Work Sync Channel",       "n": 0},
+    {"dot": "#67e8f9", "name": "Frontend Friends",        "n": 0},
+    {"dot": "#c4b5fd", "name": "Vibe Coding",             "n": 0},
+    {"dot": "#fde047", "name": "Content Creators",        "n": 0},
+    {"dot": "#fbbf24", "name": "Founder Lounge",          "n": 0},
+    {"dot": "#fca5a5", "name": "Investor Pulse",          "n": 0},
+    {"dot": "#86efac", "name": "Local Meetup",            "n": 0}
+  ],
+  "focus": [
+    {"title": "(LLM 未跑. 这里会出 5-8 条最值得关注信号)",
+     "group": "—", "time": "—",
+     "tags": ["工具/产品"], "count": 0}
+  ],
+  "actions": [
+    {"cat": "看报名/活动", "catColor": "amber", "time": "—",
+     "title": "(LLM 未跑. 这里会出 3-5 条可立即响应的行动项)",
+     "group": "—"}
+  ],
+  "sources": [
+    {"name": "(stats 未跑)", "n": 0, "where": "—", "extra": "0 群"}
+  ],
+  "_mode": "mock",
+  "_error": null
+}

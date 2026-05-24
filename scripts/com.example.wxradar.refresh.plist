@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  wechat-radar-dashboard auto-refresh launchd job
+  Schedule: 07:30 / 12:30 / 19:30 daily (edit Hour/Minute below to taste)
+
+  Install (replace YOUR_USER + YOUR_PROJECT_DIR first):
+
+    sed -i '' "s|YOUR_USER|$(whoami)|g; s|YOUR_PROJECT_DIR|$HOME/Documents/wechat-radar-dashboard|g" \
+      com.example.wxradar.refresh.plist
+    cp com.example.wxradar.refresh.plist ~/Library/LaunchAgents/
+    launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.example.wxradar.refresh.plist
+    launchctl enable gui/$(id -u)/com.example.wxradar.refresh
+
+  Test fire (without waiting):
+    launchctl kickstart -k gui/$(id -u)/com.example.wxradar.refresh
+
+  Status:
+    launchctl print gui/$(id -u)/com.example.wxradar.refresh
+
+  Uninstall:
+    launchctl bootout gui/$(id -u) ~/Library/LaunchAgents/com.example.wxradar.refresh.plist
+    rm ~/Library/LaunchAgents/com.example.wxradar.refresh.plist
+
+  Logs:
+    YOUR_PROJECT_DIR/launchd.{out,err}.log
+
+  ⚠ TCC FDA caveat: if launchd.err.log shows "Operation not permitted" on ~/Documents,
+  add /opt/homebrew/bin/python3 (or `which python3`) to System Settings →
+  Privacy & Security → Full Disk Access.
+-->
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.example.wxradar.refresh</string>
+
+  <key>ProgramArguments</key>
+  <array>
+    <string>/usr/bin/env</string>
+    <string>python3</string>
+    <string>YOUR_PROJECT_DIR/scripts/launch_refresh.py</string>
+  </array>
+
+  <key>StartCalendarInterval</key>
+  <array>
+    <dict><key>Hour</key><integer>7</integer><key>Minute</key><integer>30</integer></dict>
+    <dict><key>Hour</key><integer>12</integer><key>Minute</key><integer>30</integer></dict>
+    <dict><key>Hour</key><integer>19</integer><key>Minute</key><integer>30</integer></dict>
+  </array>
+
+  <key>StandardOutPath</key>
+  <string>YOUR_PROJECT_DIR/launchd.out.log</string>
+  <key>StandardErrorPath</key>
+  <string>YOUR_PROJECT_DIR/launchd.err.log</string>
+
+  <key>RunAtLoad</key><false/>
+
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>HOME</key><string>/Users/YOUR_USER</string>
+    <key>LANG</key><string>en_US.UTF-8</string>
+  </dict>
+</dict>
+</plist>
