@@ -4,6 +4,13 @@ stats.json
 links.json
 mentions.json
 llm_output.json
+# Stage 10/12 cache files (all contain real WeChat data, NEVER commit)
+replies.json
+history.json
+official.json
+private.json
+self.json
+unified.json
 *.log
 launchd.out.log
 launchd.err.log

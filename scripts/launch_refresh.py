@@ -44,6 +44,13 @@ scripts = [
     ("refresh_stats.py",    []),
     ("refresh_links.py",    []),
     ("refresh_mentions.py", []),
+    ("refresh_replies.py",  []),  # Stage 10
+    # Stage 12 Wave 1 P0: 4 new data sources
+    ("refresh_official.py", []),  # 公众号文章
+    ("refresh_private.py",  []),  # 1-on-1 私聊
+    ("refresh_self.py",     []),  # 自我角色镜子
+    ("refresh_unified.py",  []),  # 跨源同人物归一 (depends on above 3)
+    # LLM last (uses mentions context for at_cascade)
     ("llm_classify.py",     []),
 ]
 codes = []

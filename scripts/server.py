@@ -18,6 +18,7 @@ Endpoints:
 """
 import json
 import os
+import re
 import subprocess
 import sys
 import time
@@ -29,6 +30,38 @@ FRONTEND_DIR = os.path.join(ROOT, "frontend")
 SCRIPTS_DIR = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, SCRIPTS_DIR)
 from _config import CONFIG, brand as _brand  # noqa
+
+# ── Stage 11: Excluded keywords (safety filter, last-line of defense) ────
+# Configurable via config.json -> excluded_keywords (list of strings).
+# Default: 扑克/德州/poker/博彩/赌. Adjust to your jurisdiction/role.
+DEFAULT_EXCLUDED = ['扑克', '德州', 'poker', '博彩', '赌']
+EXCLUDED_PATTERNS = CONFIG.get("excluded_keywords") or DEFAULT_EXCLUDED
+EXCLUDED_RE = re.compile('|'.join(re.escape(w) for w in EXCLUDED_PATTERNS), re.IGNORECASE) \
+    if EXCLUDED_PATTERNS else None
+
+
+def _is_excl(text):
+    return bool(EXCLUDED_RE and text and EXCLUDED_RE.search(str(text)))
+
+
+def _filter_list(items, fields=('chat','group','name','title','content','summary','where','body','des','event','theme')):
+    if not isinstance(items, list): return items
+    out = []
+    for it in items:
+        if isinstance(it, dict):
+            if any(_is_excl(it.get(f,'')) for f in fields): continue
+            for k in ('items','people','groups'):
+                if isinstance(it.get(k), list) and any(_is_excl(x) for x in it[k]):
+                    it = {**it, k: [x for x in it[k] if not _is_excl(x)]}
+            out.append(it)
+        elif not _is_excl(it):
+            out.append(it)
+    return out
+
+
+def _scrub_text(s):
+    if not s or not EXCLUDED_RE: return s
+    return EXCLUDED_RE.sub('[已过滤]', str(s))
 
 PORT = int(os.environ.get("PORT", (CONFIG.get("server") or {}).get("port", 8786)))
 HOST = (CONFIG.get("server") or {}).get("host", "127.0.0.1")
@@ -187,7 +220,11 @@ def fetch_real(days=DEFAULT_DAYS):
             if llm.get("briefing"): d["briefing"] = llm["briefing"]
             if llm.get("focus"):    d["focus"] = llm["focus"]
             if llm.get("actions"):  d["actions"] = llm["actions"]
-            d["_real_fields"].extend(["briefing", "focus", "actions"])
+            # Stage 10 new fields
+            if llm.get("scqa"):     d["scqa"] = llm["scqa"]
+            if llm.get("mece"):     d["mece"] = llm["mece"]
+            if llm.get("at_cascade"): d["at_cascade"] = llm["at_cascade"]
+            d["_real_fields"].extend(["briefing", "focus", "actions", "scqa", "mece", "at_cascade"])
             d["_extras"].update({
                 "llm_refreshed_at": llm.get("refreshed_at_human"),
                 "llm_model": llm.get("model"),
@@ -199,6 +236,74 @@ def fetch_real(days=DEFAULT_DAYS):
             d["_mode"] = "real-full"
         except Exception as e:
             d["_extras"]["llm_err"] = str(e)
+
+    # Stage 10: merge replies.json
+    rf = os.path.join(ROOT, "replies.json")
+    if os.path.exists(rf):
+        try:
+            d["replies"] = json.load(open(rf, encoding="utf-8"))
+            d["_real_fields"].append("replies")
+        except Exception as e:
+            d["_extras"]["replies_err"] = str(e)
+
+    # Stage 10: merge history.json
+    hf = os.path.join(ROOT, "history.json")
+    if os.path.exists(hf):
+        try:
+            d["history"] = json.load(open(hf, encoding="utf-8"))
+            d["_real_fields"].append("history")
+        except Exception as e:
+            d["_extras"]["history_err"] = str(e)
+
+    # Stage 10: surface by_hour_cross_group + mute_candidates from stats.json
+    sf2 = os.path.join(ROOT, "stats.json")
+    if os.path.exists(sf2):
+        try:
+            ss = json.load(open(sf2, encoding="utf-8"))
+            d["_extras"]["by_hour_cross_group"] = ss.get("by_hour_cross_group")
+            d["_extras"]["mute_candidates"] = ss.get("mute_candidates")
+        except Exception:
+            pass
+
+    # ── Stage 12 Wave 1 P0: merge official / private / self / unified ──
+    for fname, dkey in [("official", "official"), ("private", "private"),
+                         ("self", "selfmirror"), ("unified", "unified")]:
+        fp = os.path.join(ROOT, f"{fname}.json")
+        if os.path.exists(fp):
+            try:
+                d[dkey] = json.load(open(fp, encoding="utf-8"))
+                d["_real_fields"].append(dkey)
+                d["_extras"][f"{dkey}_refreshed_at"] = d[dkey].get("refreshed_at_human")
+            except Exception as e:
+                d["_extras"][f"{dkey}_err"] = str(e)
+
+    # ── Stage 11: Last-line safety filter ──
+    if EXCLUDED_RE:
+        for fld in ('collections','sources','focus','actions','links_aggregated','mece'):
+            if d.get(fld): d[fld] = _filter_list(d[fld])
+        ex = d.get('_extras', {})
+        for fld in ('mute_candidates','mentions_by_group','mentions_by_sender','mentions_recent'):
+            if ex.get(fld): ex[fld] = _filter_list(ex[fld])
+        if ex.get('links_summary') and ex['links_summary'].get('by_group_top10'):
+            ex['links_summary']['by_group_top10'] = _filter_list(ex['links_summary']['by_group_top10'])
+        if d.get('replies') and d['replies'].get('overdue'):
+            d['replies']['overdue'] = _filter_list(d['replies']['overdue'])
+        if d.get('history'):
+            for snap in d['history']:
+                if isinstance(snap.get('group_msg_counts'), dict):
+                    snap['group_msg_counts'] = {k:v for k,v in snap['group_msg_counts'].items() if not _is_excl(k)}
+        if d.get('briefing'):
+            d['briefing'] = {k: (_scrub_text(v) if isinstance(v,str) else v) for k,v in d['briefing'].items()}
+        if d.get('scqa'):
+            d['scqa'] = {k: _scrub_text(v) for k,v in d['scqa'].items()}
+        if d.get('at_cascade'):
+            ac = d['at_cascade']
+            d['at_cascade'] = {**ac,
+                'summary': _scrub_text(ac.get('summary')),
+                'main_event': _scrub_text(ac.get('main_event')),
+                'by_event': _filter_list(ac.get('by_event', [])),
+            }
+
     return d
 
 

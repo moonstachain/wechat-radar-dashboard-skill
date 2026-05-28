@@ -6,14 +6,50 @@
 
 A **Claude Code skill** that builds a personal-use, local-only intelligence dashboard for WeChat group chats. Distilled from a 13-stage n=1 deployment (PII-stripped).
 
-## What it gives you
+## What it gives you (12 阶段累积)
 
-- **4 KPI cards** with real values: 活跃群 / 总消息 / @ 我的 / 静默群 — all window-switchable (日/周/月/季/年)
-- **3 智能列**: 最值得关注 / 可行动项 / 情报源 — LLM 排序的高信号
-- **4 tab 视图**: Brief (主看板) / Live (时间流) / Cross (跨群发言者 + 类型分布) / Link (URL 真相镜子)
-- **6 类 drawer**: @ mentions 详情 / 所有群 / 收藏 / 未分组 / wx-daemon 状态 / 设置
-- **launchd 3×/day 自刷**, 重扫按钮 + 全量同步按钮真区分
+### 主驾驶舱 (Brief 视图)
+- **4 KPI cards** 真值: 活跃群 / 总消息 / @ 我的 / 静默群 — 窗口可切换 (日/周/月/季/年)
+- **SCQA 简报** (4 段: Situation/Complication/Question/Answer) ← Stage 10 McKinsey 升级
+- **本周 5 议题 MECE** (业务/学习/投资/人脉/生活) ← Stage 10 议题树
+- **3 智能列**: 最值得关注 / 可行动项 / 情报源 — LLM 排序
+- **3 子卡 row**: 建议 mute (高量+0 信号) / 未回复积压 / 群健康状态机
+- **每日心电图** 24h 跨群活动分布
+
+### 4 tab 视图
+- **Brief** — 主看板 (上述)
+- **Live** — 跨群高信号时间线
+- **Cross** — 话题雷达 + 跨群发言者 + 消息类型分布
+- **Link** — 链接情报 + 群文化镜子 + 跨群传播级联
+
+### 8 drawer (点击展开真数据)
+1. **@ mentions 详情** (4 窗口对比 / 25 最近 / by_group / by_sender / at_cascade 反追)
+2. **所有群** (按最近活动排序)
+3. **收藏** (wx favorites 真接)
+4. **未分组** (数学解释)
+5. **私聊** ⭐ Stage 12 (30 私聊 / 你欠回 vs 已回)
+6. **公众号** ⭐ Stage 12 (公众号文章 + top sources + 关键词)
+7. **我的镜子** ⭐ Stage 12 (你是中心 N 群 / 潜水 M 群 / my_by_hour)
+8. **wx-daemon 状态** + **设置 (含数据新鲜度 + Backlog 清单)**
+
+### 数据源 (4 个 — Stage 12 多源)
+- 群聊 (sessions + stats + history + search + unread)
+- 私聊 1-on-1 (Stage 12)
+- 公众号 (wx biz-articles, Stage 12 — 你真情报源!)
+- 朋友圈 (Wave 2 待接)
+- 收藏 (wx favorites)
+- 跨源同人物归一 (fingerprint 匹配 4 source, Stage 12)
+
+### 系统层
+- **launchd 3×/day 自刷** (07:30/12:30/19:30) — 9 件套并发 ~45s + ¥0.17/次
 - **三重 fallback**: real-full → real-kpi-only → mock → inline (UI 永不空白)
+- **风险关键词过滤** (扑克/德州/poker/博彩/赌, 可在 config.json 扩展) — Stage 11
+
+## 🚀 给同事用: 一键部署指南
+
+**第一次部署?** → 看 **[DEPLOYMENT.md](DEPLOYMENT.md)** (30 分钟从 0 到 dashboard 跑起来, 含 wx init / config 填写 / 故障排查全套)
+
+---
 
 ## Quick start (5 commands after wx-cli init)
 

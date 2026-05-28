@@ -58,7 +58,29 @@ def fetch_recent_msgs(self_ids: tuple, hours: int = 24, limit_per_group: int = 2
     return out
 
 
-def build_user_prompt(msgs, user_nick: str, brand: str):
+def _load_mentions_context() -> str:
+    """Stage 10: read mentions.json for at_cascade context if available."""
+    import json as _json
+    p = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "mentions.json")
+    if not os.path.exists(p):
+        return ""
+    try:
+        m = _json.load(open(p, encoding="utf-8"))
+        w = m.get("windows", {})
+        recent = m.get("recent", [])[:15]
+        by_sender = m.get("by_sender", [])[:8]
+        ctx = f"\n\n--- @ 的 mentions 上下文 (供推断 at_cascade) ---\n"
+        ctx += f"窗口: 1d={w.get('1d',0)} 3d={w.get('3d',0)} 7d={w.get('7d',0)} 30d={w.get('30d',0)}\n"
+        ctx += f"top senders @ 我: " + ", ".join(f"{s['sender']}({s['n']})" for s in by_sender) + "\n"
+        ctx += f"最近 @ (top 15):\n"
+        for r in recent:
+            ctx += f"  [{r.get('chat','?')[:20]}] {r.get('time','')[-11:]} {r.get('sender','')}: {r.get('content','')[:80]}\n"
+        return ctx
+    except Exception:
+        return ""
+
+
+def build_user_prompt(msgs, user_nick: str, brand: str, mentions_context: str = ""):
     lines = [f"[{m['group']}] {m['time']} {m['sender']}: {m['content']}" for m in msgs]
     body = "\n".join(lines)
     user_label = user_nick or "the user"
@@ -66,25 +88,49 @@ def build_user_prompt(msgs, user_nick: str, brand: str):
 
 {body}
 
-请分析后返回 JSON, 结构:
+{mentions_context}
+
+请分析后返回 JSON, 结构 (Stage 10 升级版, 含 SCQA/MECE/at_cascade):
 
 {{
-  "briefing": "60-120 字今日重点摘要, 必须站在 {user_label} 第一视角讲'今天群里最值得关注的几件事', 不要套话",
+  "briefing": "60-120 字今日重点摘要 (向后兼容, 平面)",
+  "scqa": {{
+    "situation":    "1 句: {user_label} 的群整体处于什么状态 (背景)",
+    "complication": "1 句: 出现了什么反常 / 值得 {user_label} 注意的事 (复杂化)",
+    "question":     "1 句: {user_label} 现在面对的真问题是什么 (决策问题)",
+    "answer":       "1 句: 建议的 next action (具体动作)"
+  }},
+  "mece": [
+    {{"theme":"业务","title":"7-15 字 action title","items":["事件1","事件2"],"icon":"💼"}},
+    {{"theme":"学习","title":"...","items":[...],"icon":"📚"}},
+    {{"theme":"投资","title":"...","items":[...],"icon":"📈"}},
+    {{"theme":"人脉","title":"...","items":[...],"icon":"👥"}},
+    {{"theme":"生活","title":"...","items":[...],"icon":"🌱"}}
+  ],
   "focus": [
     {{"title":"原文 35 字以内","group":"群名","time":"HH:MM","tags":["工具/产品" 或 "链接信号" 或 "可跟进" 或 "机会/需求"],"count":1}}
   ],
   "actions": [
     {{"cat":"看报名/活动" 或 "看采购/团购" 或 "可回复推荐" 或 "机会/需求","catColor":"amber","time":"HH:MM","title":"原文 50 字以内","group":"群名"}}
-  ]
+  ],
+  "at_cascade": {{
+    "summary":"1-2 句: 综合 @ {user_label} 的 mentions 上下文, 这背后的主线是什么",
+    "main_event":"1 句: 如果有 1 个主导事件, 是什么 (没有则填'无主线-独立事件')",
+    "by_event": [
+      {{"event":"事件简述","mentions":N,"people":["A","B"],"groups":["群名"]}}
+    ]
+  }}
 }}
 
 要求:
-- focus 5-8 条, 选 {user_label} 真正应该关注的 (不是闲聊/打招呼/红包/广告/营销机器人)
-- actions 3-5 条, 必须可立即响应 (报名/团购/回答问题/抓机会)
+- briefing 保留 60-120 字平面 (向后兼容)
+- scqa 必须 {user_label} 第一视角, S→C→Q→A 因果递进
+- mece 必须 5 大类 (业务/学习/投资/人脉/生活), 每类 0-3 items, 跨类不重复
+- focus 5-8 条, actions 3-5 条
+- at_cascade 基于 mentions_context 推断"为什么"
 - 跳过纯营销/推销机器人主导的群
-- 去重 (同一事件不要出两条 focus)
-- tags 数组每条 1-3 个
-- 不要包含 {user_label} 自己的发言"""
+- 不要包含 {user_label} 自己的发言
+- 严格 JSON, 不要 markdown 代码块"""
 
 
 SYSTEM = "你是 {user_label} 的微信群聊情报分析助手. 返回严格 JSON 对象, 不要 markdown 代码块、不要解释."
@@ -93,7 +139,8 @@ SYSTEM = "你是 {user_label} 的微信群聊情报分析助手. 返回严格 JS
 def call_llm(api_key, msgs, user_nick: str, brand: str, provider: str, model: str, endpoint: str, temperature: float):
     user_label = user_nick or "the user"
     sys_prompt = SYSTEM.format(user_label=user_label)
-    user_prompt = build_user_prompt(msgs, user_nick, brand)
+    mentions_ctx = _load_mentions_context()
+    user_prompt = build_user_prompt(msgs, user_nick, brand, mentions_ctx)
 
     if provider == "claude":
         # Anthropic API: different schema
@@ -195,6 +242,11 @@ def main():
         "briefing": {"title": "今日情报简报",
                      "generated_at": datetime.now().strftime("%Y-%m-%d %H:%M"),
                      "body": result.get("briefing", "")},
+        # Stage 10 new fields
+        "scqa": result.get("scqa", {}),
+        "mece": result.get("mece", []),
+        "at_cascade": result.get("at_cascade", {}),
+        # original (back-compat)
         "focus": result.get("focus", []),
         "actions": result.get("actions", []),
     }
